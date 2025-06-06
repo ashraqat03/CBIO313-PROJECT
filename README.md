@@ -170,7 +170,7 @@ Cross-validation and hyperparameter tuning were performed using `GridSearchCV`.
 
 A web-based interface was created using **Streamlit** to allow users to enter clinical and gene expression data and receive a predicted diagnosis.
 
-Live App: [Insert your Streamlit app URL after deployment]
+Live App: [https://cbio313-project-dxewgbdnhafygjmklnlvyy.streamlit.app/#predicted-diagnosis-mci]
 
 The app uses:
 - `scaler.pkl`: StandardScaler trained on gene expression features
@@ -183,4 +183,37 @@ The app uses:
 ## Requirements
 
 To run this project locally, install the following packages:
+streamlit
+pandas
+numpy
+matplotlib
+seaborn
+scikit-learn
+xgboost
+joblib
+
+---
+
+## Folder Structure
+
+CBIO313-PROJECT/
+│
+├── app.py                     # Web app code
+├── best_model.pkl             # Final stacking classifier
+├── scaler.pkl                 # StandardScaler trained on gene features
+├── pca.pkl                    # PCA transformer
+├── label_encoder_diag.pkl     # Diagnosis label encoder
+├── requirements.txt           # Python dependencies
+├── README.md                  # This file
+└── ML_PROJECT.ipynb  # Colab notebook with full analysis
+
+---
+## Future Improvements
+
+  Use SHAP values for better model interpretation
+  Add batch prediction support (CSV upload)
+  Explore deep learning approaches for integrating multi-modal data
+  Improve UI/UX of the web app
+  Apply cross-dataset validation for generalization
+     
 
