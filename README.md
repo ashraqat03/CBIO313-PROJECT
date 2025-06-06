@@ -7,6 +7,7 @@ This project aims to classify Alzheimer's disease stages (Cognitively Unimpaired
 
 The goal is to build and compare multiple machine learning models to determine whether we can accurately predict Alzheimer's progression using multi-modal data. The final model was deployed as a web application using Streamlit for demonstration purposes.
 
+PRESENTATION VIDEO LINK: 
 ---
 
 ## Table of Contents
