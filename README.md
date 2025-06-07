@@ -7,7 +7,7 @@ This project aims to classify Alzheimer's disease stages (Cognitively Unimpaired
 
 The goal is to build and compare multiple machine learning models to determine whether we can accurately predict Alzheimer's progression using multi-modal data. The final model was deployed as a web application using Streamlit for demonstration purposes.
 
-PRESENTATION VIDEO LINK: 
+PRESENTATION VIDEO AND PPT LINK: https://nileuniversity-my.sharepoint.com/:f:/g/personal/a_mohamed2236_nu_edu_eg/Ev-WkzUDTqJOgK4IFG8xh3UBDaJHE0spKcp87bPORx_tvQ?e=HHanx6 
 ---
 
 ## Table of Contents
@@ -93,7 +93,7 @@ The dataset required significant preprocessing before modeling, including imputa
 6. **Final Feature Set**:
    - 50 PCA-transformed gene features
    - 9 clinical features
-   - Final shape: `(n_samples, 59)` features
+   - Final shape: `(15000, 59)` features
 
 All transformations were documented and saved for use in deployment.
 
