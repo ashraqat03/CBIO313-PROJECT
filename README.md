@@ -61,6 +61,7 @@ Source of data: [Alzheimer's Disease Neuroimaging Initiative (ADNI)](https://adn
   - CDGLOBAL (Global Clinical Dementia Rating)
   - FAQTOTAL (Functional Assessment Questionnaire Total)
   - GDTOTAL (Geriatric Depression Scale Total)
+  - ADNI Microarray gene expression (uploaded to drive as it exceeds the 25mb limit)
 
 ### Target Variable:
 - Diagnosis_Label: {CU, MCI, AD}
