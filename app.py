@@ -1,4 +1,3 @@
-# --- app.py ---
 import streamlit as st
 import numpy as np
 import pandas as pd
@@ -14,36 +13,33 @@ def extract_model():
             zip_ref.extractall(".")
 extract_model()
 
-# --- Load All Files ---
+# --- Load Model, Encoders, PCA, Scaler, Gene List ---
 @st.cache_resource
 def load_all():
     model = joblib.load("best_model.pkl")
     le_diag = joblib.load("label_encoder_diag.pkl")
     scaler = joblib.load("scaler.pkl")
     pca = joblib.load("pca.pkl")
-    
     with open("gene_list.txt", "r") as f:
         gene_list = [line.strip() for line in f.readlines()]
-    
     return model, le_diag, scaler, pca, gene_list
 
 model, le_diag, scaler, pca, gene_list = load_all()
 
-# --- UI Header ---
+# --- Header ---
 st.markdown("<h1 style='text-align: center; color: #4B0082;'>🧠 Alzheimer's Stage Classifier</h1>", unsafe_allow_html=True)
-st.markdown("<p style='text-align: center;'>Enter gene expression values and clinical features to predict the Alzheimer’s stage.</p>", unsafe_allow_html=True)
+st.markdown("<p style='text-align: center;'>Enter gene expression and clinical data to predict Alzheimer’s disease stage.</p>", unsafe_allow_html=True)
 
 # --- Gene Expression Inputs ---
-st.subheader("🧬 Enter Gene Expression Values")
+st.subheader("🧬 Enter Gene Expression Values (first 10 genes shown)")
+
 gene_input = []
-for gene in gene_list[:10]:  # Display first 10 genes only for simplicity
-    val = st.number_input(f"{gene}", min_value=0.0, max_value=20.0, value=5.0, step=0.1, format="%.3f")
+for i, gene in enumerate(gene_list[:10]):  # Show only 10 genes for simplicity
+    val = st.number_input(f"{gene}", min_value=0.0, max_value=20.0, value=5.0, step=0.1, key=f"gene_{i}")
     gene_input.append(val)
 
-# Note: add a checkbox to allow uploading full 185+ genes via file in future
-
 # --- Clinical Inputs ---
-st.subheader("🧑‍⚕️ Clinical Information")
+st.subheader("🧑‍⚕️ Clinical Data")
 age = st.number_input("Age", min_value=50, max_value=90, value=70)
 mmse = st.number_input("MMSE Score", min_value=0, max_value=30, value=25)
 gender = st.selectbox("Gender", ["Male", "Female"])
@@ -71,17 +67,16 @@ if st.button("🧠 Predict Alzheimer’s Stage"):
 
         pred = model.predict(final_input)
         proba = model.predict_proba(final_input)
-
-        # Show results
         diagnosis = le_diag.inverse_transform(pred)[0]
+
+        # --- Display results ---
         st.markdown(f"<h3 style='text-align: center; color: green;'>🧠 Predicted Diagnosis: <strong>{diagnosis}</strong></h3>", unsafe_allow_html=True)
 
         st.markdown("### 🔍 Prediction Probabilities")
         for i, label in enumerate(le_diag.classes_):
             st.write(f"{label}: {proba[0][i]:.3f}")
 
-        # Optional: display model accuracy (precomputed)
-        st.success("📊 This model was trained on real-world data and achieved over 93% accuracy.")
+        st.success("📊 Model trained on ADNI data. Accuracy: **93%**, Macro ROC-AUC: **0.986**")
 
     except Exception as e:
         st.error(f"🚨 Error during prediction: {e}")
