@@ -36,20 +36,20 @@ st.subheader("🧬 Enter PCA-Reduced Gene Expression Values")
 
 gene_pca_input = []
 for i in range(50):
-    val = st.slider(f"PC{i+1}", 0.0, 10.0, 5.0, key=f"pc_{i}")
+    val = st.number_input(f"PC{i+1}", min_value=0.0, max_value=10.0, value=5.0, key=f"pc_{i}")
     gene_pca_input.append(val)
 
 # Clinical Features
 st.subheader("🧑‍⚕️ Enter Clinical Data")
-age = st.slider("Age", 50, 90, 70)
-mmse = st.slider("MMSE Score", 0, 30, 25)
+age = st.number_input("Age", min_value=50, max_value=90, value=70)
+mmse = st.number_input("MMSE Score", min_value=0, max_value=30, value=25)
 gender = st.selectbox("Gender", ["Male", "Female"])
 apoe4 = st.selectbox("APOE4 Status", ["0", "1", "2"])
-education = st.slider("Years of Education", 5, 20, 12)
-cdr_global = st.slider("CDGLOBAL", 0.0, 3.0, 0.5)
-faq_total = st.slider("FAQTOTAL", 0, 30, 10)
-gd_total = st.slider("GDTOTAL", 0, 10, 3)
-viscode = st.slider("VISCODE", 0.0, 5.0, 1.0)
+education = st.number_input("Years of Education", min_value=5, max_value=20, value=12)
+cdr_global = st.number_input("CDGLOBAL", min_value=0.0, max_value=3.0, value=0.5)
+faq_total = st.number_input("FAQTOTAL", min_value=0, max_value=30, value=10)
+gd_total = st.number_input("GDTOTAL", min_value=0, max_value=10, value=3)
+viscode = st.number_input("VISCODE", min_value=0.0, max_value=5.0, value=1.0)
 
 # Convert categorical inputs
 gender_num = 0 if gender == "Male" else 1
