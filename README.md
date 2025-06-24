@@ -22,6 +22,7 @@ PRESENTATION VIDEO AND PPT LINK: https://nileuniversity-my.sharepoint.com/:f:/g/
 8. [Requirements](#requirements)  
 9. [Folder Structure](#folder-structure)  
 10. [Future Improvements](#future-improvements)
+11. [Deployment Updates](#deployment-updates)
 
 ---
 
@@ -218,4 +219,22 @@ CBIO313-PROJECT/
   Improve UI/UX of the web app
   Apply cross-dataset validation for generalization
      
+---
 
+## Deployment Updates
+
+  ### June 5, 2025 — Final Deployment Achieved
+
+- The Alzheimer's Stage Classifier is now fully deployed using Streamlit Cloud.
+- Users can input clinical features and the first 10 gene expression values.
+- The remaining gene expression inputs are automatically filled with default mean values to simulate real-world usage.
+- The app performs:
+  - Standard scaling on all features
+  - PCA transformation of 189 gene expression values into 50 components
+  - Merging with clinical features into a 59-feature input for the model
+- Final prediction output includes:
+  - Predicted diagnosis stage (CU, MCI, or AD)
+  - Class probabilities
+  - Model performance metrics (Accuracy: 93%, ROC-AUC: 0.986)
+
+This update enables simplified interaction while maintaining accurate predictions using high-dimensional multimodal data.
