@@ -7,13 +7,11 @@ import os
 # --- Load all files once ---
 @st.cache_resource
 def load_files():
-    # Make sure these files exist in the repo
     model = joblib.load("best_model.pkl")
-    scaler = joblib.load("scaler.pkl")      # Trained on raw gene features (189)
-    pca = joblib.load("pca.pkl")            # Trained on scaled gene features
+    scaler = joblib.load("scaler.pkl")       # Trained on 189 raw gene features
+    pca = joblib.load("pca.pkl")             # Applied after scaling
     le_diag = joblib.load("label_encoder_diag.pkl")
 
-    # Read gene names from gene_list.txt
     with open("gene_list.txt", "r") as f:
         gene_list = [line.strip() for line in f.readlines()]
 
@@ -22,7 +20,7 @@ def load_files():
 model, scaler, pca, le_diag, gene_list = load_files()
 
 # --- Gene filler means (for missing genes) ---
-gene_means = np.ones(189) * 5.0  # You can replace with real means later
+gene_means = np.ones(189) * 5.0  # Replace with real means if available
 
 # --- UI Section ---
 st.markdown("<h1 style='text-align: center; color: #4B0082;'>🧠 Alzheimer's Stage Classifier</h1>", unsafe_allow_html=True)
@@ -55,11 +53,11 @@ apoe4_num = int(apoe4)
 if st.button("🧠 Predict Diagnosis"):
     try:
         # Step 1: Fill user input into gene array
-        full_gene_array = gene_means.copy().reshape(1, -1)
+        full_gene_array = gene_means.copy().reshape(1, -1)  # shape: (1, 189)
         for i in range(10):
             full_gene_array[0, i] = gene_input[i]
 
-        # Step 2: Apply Scaler trained on gene expression features only
+        # Step 2: Apply Scaler trained on 189 raw gene features
         scaled_genes = scaler.transform(full_gene_array)  # shape: (1, 189)
 
         # Step 3: Apply PCA to reduce to 50 components
@@ -69,14 +67,12 @@ if st.button("🧠 Predict Diagnosis"):
         clinical_data = np.array([[age, mmse, gender_num, apoe4_num,
                                   education, cdr_global, faq_total, gd_total, viscode]])
 
-        # Step 5: Combine PCA + Clinical
+        # Step 5: Combine PCA + Clinical → (1, 59)
         final_input = np.hstack([gene_pca, clinical_data])  # shape: (1, 59)
 
-        # Step 6: Predict using the best model
+        # Step 6: Predict
         prediction_encoded = model.predict(final_input)
         prediction_probs = model.predict_proba(final_input)
-
-        # Step 7: Decode prediction
         diagnosis = le_diag.inverse_transform(prediction_encoded)[0]
 
         # --- Display Results ---
