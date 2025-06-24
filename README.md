@@ -8,6 +8,8 @@ This project aims to classify Alzheimer's disease stages (Cognitively Unimpaired
 The goal is to build and compare multiple machine learning models to determine whether we can accurately predict Alzheimer's progression using multi-modal data. The final model was deployed as a web application using Streamlit for demonstration purposes.
 
 PRESENTATION VIDEO AND PPT LINK: https://nileuniversity-my.sharepoint.com/:f:/g/personal/a_mohamed2236_nu_edu_eg/Ev-WkzUDTqJOgK4IFG8xh3UBDaJHE0spKcp87bPORx_tvQ?e=HHanx6 
+
+LIVE APP: https://cbio313-project-dxewgbdnhafygjmklnlvyy.streamlit.app/
 ---
 
 ## Table of Contents
@@ -173,7 +175,7 @@ Cross-validation and hyperparameter tuning were performed using `GridSearchCV`.
 
 A web-based interface was created using **Streamlit** to allow users to enter clinical and gene expression data and receive a predicted diagnosis.
 
-Live App: [https://cbio313-project-dxewgbdnhafygjmklnlvyy.streamlit.app/#predicted-diagnosis-mci]
+Live App: [https://cbio313-project-dxewgbdnhafygjmklnlvyy.streamlit.app/]
 
 The app uses:
 - `scaler.pkl`: StandardScaler trained on gene expression features
