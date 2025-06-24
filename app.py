@@ -23,8 +23,8 @@ extract_model()
 def load_files():
     try:
         model = joblib.load("best_model.pkl")
-        scaler = joblib.load("scaler.pkl")         # Trained on full 59-feature input
-        pca = joblib.load("pca.pkl")               # PCA trained on 189 genes
+        scaler = joblib.load("scaler.pkl")
+        pca = joblib.load("pca.pkl")
         le_diag = joblib.load("label_encoder_diag.pkl")
         with open("gene_list.txt", "r") as f:
             gene_list = [line.strip() for line in f.readlines()]
@@ -35,23 +35,26 @@ def load_files():
 
 model, scaler, pca, le_diag, gene_list = load_files()
 
-# --- Set expected gene count (based on PCA training) ---
+# --- PCA-trained gene count ---
 expected_gene_count = 189
-if len(gene_list) != expected_gene_count:
-    st.error(f"🚨 gene_list.txt has {len(gene_list)} genes, but PCA expects {expected_gene_count}. Please fix.")
-    st.stop()
 
-# --- Gene input UI ---
+# --- Handle gene list length ---
+if len(gene_list) != expected_gene_count:
+    st.warning(f"⚠️ PCA expects {expected_gene_count} genes, but gene_list.txt contains {len(gene_list)}.")
+    gene_list = gene_list[:expected_gene_count]
+
+# --- Header ---
 st.markdown("<h1 style='text-align: center; color: #4B0082;'>🧠 Alzheimer's Stage Classifier</h1>", unsafe_allow_html=True)
 st.markdown("<p style='text-align: center;'>Enter gene expression and clinical data to predict diagnosis stage.</p>", unsafe_allow_html=True)
 
-st.subheader("🧬 Enter Gene Expression (First 10 Only)")
+# --- Gene Input ---
+st.subheader("🧬 Enter Gene Expression (First 10 of 189)")
 gene_input = []
 for i, gene in enumerate(gene_list[:10]):
     val = st.number_input(f"{gene}", min_value=0.0, max_value=20.0, value=5.0, step=0.1, key=f"gene_{i}")
     gene_input.append(val)
 
-# --- Clinical Input UI ---
+# --- Clinical Data ---
 st.subheader("🧑‍⚕️ Enter Clinical Data")
 age = st.number_input("Age", 50, 90, 70)
 mmse = st.number_input("MMSE Score", 0, 30, 25)
@@ -63,39 +66,38 @@ faq_total = st.slider("FAQ Total", 0, 30, 10)
 gd_total = st.slider("GDS Total", 0, 10, 3)
 viscode = st.slider("VISCODE", 0.0, 5.0, 1.0)
 
-# --- Convert Categorical ---
+# Convert categorical
 gender_num = 0 if gender == "Male" else 1
 apoe4_num = int(apoe4)
 
 # --- Predict ---
 if st.button("🧠 Predict Diagnosis"):
     try:
-        # Fill gene vector: 10 inputs + 179 mean fillers
-        gene_array = np.ones(expected_gene_count) * 5.0
+        # Step 1: Full gene array (with filler)
+        full_gene_array = np.ones(expected_gene_count) * 5.0
         for i in range(len(gene_input)):
-            gene_array[i] = gene_input[i]
+            full_gene_array[i] = gene_input[i]
+        full_gene_array = full_gene_array.reshape(1, -1)
 
-        gene_array = gene_array.reshape(1, -1)  # shape: (1, 189)
+        # Step 2: PCA → (1, 50)
+        gene_pca = pca.transform(full_gene_array)
 
-        # PCA → 1×50
-        gene_pca = pca.transform(gene_array)
-
-        # Combine with clinical → 1×59
+        # Step 3: Clinical features
         clinical_array = np.array([[age, mmse, gender_num, apoe4_num,
                                     education, cdr_global, faq_total, gd_total, viscode]])
-        final_input = np.hstack([gene_pca, clinical_array])
 
-        # Scale → 1×59
-        final_scaled = scaler.transform(final_input)
+        # Step 4: Combine and scale
+        combined_input = np.hstack([gene_pca, clinical_array])
+        final_input = scaler.transform(combined_input)
 
-        # Predict
-        pred = model.predict(final_scaled)
-        proba = model.predict_proba(final_scaled)
+        # Step 5: Predict
+        pred = model.predict(final_input)
+        proba = model.predict_proba(final_input)
         label = le_diag.inverse_transform(pred)[0]
 
-        # --- Display ---
+        # Output
         st.success(f"🧠 Predicted Diagnosis: **{label}**")
-        st.markdown("### 🔍 Class Probabilities")
+        st.markdown("### 🔍 Prediction Probabilities")
         for i, cls in enumerate(le_diag.classes_):
             st.write(f"{cls}: {proba[0][i]:.3f}")
 
