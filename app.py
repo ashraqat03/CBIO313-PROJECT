@@ -2,27 +2,44 @@
 import streamlit as st
 import numpy as np
 import joblib
+import zipfile
 import os
 
-# --- Load all files once ---
+# --- Step 1: Extract ZIP file if needed ---
+@st.cache_resource
+def extract_model():
+    if not os.path.exists("best_model.pkl"):
+        try:
+            with zipfile.ZipFile("best_model.zip", 'r') as zip_ref:
+                zip_ref.extractall(".")
+            st.success("✅ Model extracted successfully.")
+        except FileNotFoundError:
+            st.error("🚨 File not found: best_model.zip is missing in the repo.")
+            st.stop()
+        except Exception as e:
+            st.error(f"🚨 Extraction failed: {e}")
+            st.stop()
+
+extract_model()
+
+# --- Step 2: Load All Required Files ---
 @st.cache_resource
 def load_files():
-    # Make sure these files exist in the repo
-    model = joblib.load("best_model.pkl")
-    scaler = joblib.load("scaler.pkl")      # Trained on raw gene features (189)
-    pca = joblib.load("pca.pkl")            # Trained on scaled gene features
-    le_diag = joblib.load("label_encoder_diag.pkl")
+    try:
+        model = joblib.load("best_model.pkl")
+        scaler = joblib.load("scaler.pkl")         # StandardScaler trained on raw genes
+        pca = joblib.load("pca.pkl")               # PCA(n_components=50)
+        le_diag = joblib.load("label_encoder_diag.pkl")
 
-    # Read gene names from gene_list.txt
-    with open("gene_list.txt", "r") as f:
-        gene_list = [line.strip() for line in f.readlines()]
+        with open("gene_list.txt", "r") as f:
+            gene_list = [line.strip() for line in f.readlines()]
 
-    return model, scaler, pca, le_diag, gene_list
+        return model, scaler, pca, le_diag, gene_list
 
 model, scaler, pca, le_diag, gene_list = load_files()
 
 # --- Gene filler means (for missing genes) ---
-gene_means = np.ones(189) * 5.0  # You can replace with real means later
+gene_means = np.ones(len(gene_list)) * 5.0  # Replace with real means if available
 
 # --- UI Section ---
 st.markdown("<h1 style='text-align: center; color: #4B0082;'>🧠 Alzheimer's Stage Classifier</h1>", unsafe_allow_html=True)
@@ -59,24 +76,21 @@ if st.button("🧠 Predict Diagnosis"):
         for i in range(10):
             full_gene_array[0, i] = gene_input[i]
 
-        # Step 2: Apply Scaler trained on gene expression features only
+        # Step 2: Apply Scaler trained on raw gene features
         scaled_genes = scaler.transform(full_gene_array)  # shape: (1, 189)
 
         # Step 3: Apply PCA to reduce to 50 components
         gene_pca = pca.transform(scaled_genes)  # shape: (1, 50)
 
-        # Step 4: Clinical features
+        # Step 4: Combine with clinical features
         clinical_data = np.array([[age, mmse, gender_num, apoe4_num,
                                   education, cdr_global, faq_total, gd_total, viscode]])
 
-        # Step 5: Combine PCA + Clinical
         final_input = np.hstack([gene_pca, clinical_data])  # shape: (1, 59)
 
-        # Step 6: Predict using the best model
+        # Step 5: Predict
         prediction_encoded = model.predict(final_input)
         prediction_probs = model.predict_proba(final_input)
-
-        # Step 7: Decode prediction
         diagnosis = le_diag.inverse_transform(prediction_encoded)[0]
 
         # --- Display Results ---
