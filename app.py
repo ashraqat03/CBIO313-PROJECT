@@ -1,11 +1,10 @@
 import streamlit as st
 import numpy as np
-import pandas as pd
 import joblib
 import zipfile
 import os
 
-# --- Extract Model if Needed ---
+# --- Extract model if zipped ---
 @st.cache_resource
 def extract_model():
     if not os.path.exists("best_model.pkl"):
@@ -13,7 +12,7 @@ def extract_model():
             zip_ref.extractall(".")
 extract_model()
 
-# --- Load Model, Scaler, PCA, Label Encoder, Gene List ---
+# --- Load all necessary components ---
 @st.cache_resource
 def load_all():
     model = joblib.load("best_model.pkl")
@@ -26,18 +25,18 @@ def load_all():
 
 model, scaler, pca, le_diag, gene_list = load_all()
 
-# --- UI Header ---
+# --- UI Title ---
 st.markdown("<h1 style='text-align: center; color: #4B0082;'>🧠 Alzheimer's Stage Classifier</h1>", unsafe_allow_html=True)
-st.markdown("<p style='text-align: center;'>Enter gene expression and clinical data to predict Alzheimer’s disease stage.</p>", unsafe_allow_html=True)
+st.markdown("<p style='text-align: center;'>Enter gene expression and clinical data to predict Alzheimer’s stage.</p>", unsafe_allow_html=True)
 
-# --- Gene Inputs (First 10 only) ---
+# --- Gene expression inputs (first 10 only) ---
 st.subheader("🧬 Enter Gene Expression Values (first 10 genes shown)")
 gene_input = []
 for i, gene in enumerate(gene_list[:10]):
     val = st.number_input(f"{gene}", min_value=0.0, max_value=20.0, value=5.0, step=0.1, key=f"gene_{i}")
     gene_input.append(val)
 
-# --- Clinical Inputs ---
+# --- Clinical inputs ---
 st.subheader("🧑‍⚕️ Clinical Data")
 age = st.number_input("Age", min_value=50, max_value=90, value=70)
 mmse = st.number_input("MMSE Score", min_value=0, max_value=30, value=25)
@@ -49,40 +48,41 @@ faq_total = st.slider("FAQTOTAL", 0, 30, 10)
 gd_total = st.slider("GDTOTAL", 0, 10, 3)
 viscode = st.slider("VISCODE", 0.0, 5.0, 1.0)
 
-# --- Convert Categorical ---
+# --- Convert categorical variables ---
 gender_num = 0 if gender == "Male" else 1
 apoe4_num = int(apoe4)
 
-# --- Prediction ---
+# --- Predict button ---
 if st.button("🧠 Predict Alzheimer’s Stage"):
     try:
-        # Step 1: Fill full gene array with scaler means
-        full_gene_array = np.array(scaler.mean_).reshape(1, -1)
+        # Step 1: Prepare full gene vector (189 total)
+        full_gene_array = np.array(scaler.mean_).reshape(1, -1)  # start with mean values
         for i in range(10):
             full_gene_array[0, i] = gene_input[i]
 
-        # Step 2: Scale and apply PCA
-        gene_scaled = scaler.transform(full_gene_array)         # [1, 189]
-        gene_pca = pca.transform(gene_scaled)                   # [1, 50]
+        # Step 2: Apply scaler and PCA on gene data only
+        gene_scaled = scaler.transform(full_gene_array)          # shape: [1, 189]
+        gene_pca = pca.transform(gene_scaled)                    # shape: [1, 50]
 
-        # Step 3: Clinical input
-        clinical_array = np.array([[age, mmse, gender_num, apoe4_num, education, cdr_global, faq_total, gd_total, viscode]])  # [1, 9]
+        # Step 3: Prepare clinical features
+        clinical_array = np.array([[age, mmse, gender_num, apoe4_num,
+                                    education, cdr_global, faq_total, gd_total, viscode]])  # shape: [1, 9]
 
-        # Step 4: Merge PCA + Clinical
-        final_input = np.concatenate([gene_pca, clinical_array], axis=1)  # [1, 59]
+        # Step 4: Combine PCA + clinical → [1, 59]
+        final_input = np.concatenate([gene_pca, clinical_array], axis=1)
 
         # Step 5: Predict
-        pred = model.predict(final_input)
+        prediction = model.predict(final_input)
+        prediction_label = le_diag.inverse_transform(prediction)[0]
         proba = model.predict_proba(final_input)
-        predicted_label = le_diag.inverse_transform(pred)[0]
 
-        # Step 6: Display Results
-        st.markdown(f"<h3 style='text-align: center; color: green;'>🧠 Predicted Diagnosis: <strong>{predicted_label}</strong></h3>", unsafe_allow_html=True)
+        # Step 6: Output
+        st.markdown(f"<h3 style='text-align: center; color: green;'>🧠 Predicted Diagnosis: <strong>{prediction_label}</strong></h3>", unsafe_allow_html=True)
         st.markdown("### 🔍 Prediction Probabilities")
         for i, label in enumerate(le_diag.classes_):
             st.write(f"{label}: {proba[0][i]:.3f}")
 
-        st.success("📊 Model trained on ADNI data. Accuracy: **93%**, Macro ROC-AUC: **0.986**")
+        st.success("📊 Model trained on ADNI data.\n\n✅ Accuracy: **93%**\n✅ ROC-AUC: **0.986**")
 
     except Exception as e:
         st.error(f"🚨 Error during prediction: {e}")
