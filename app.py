@@ -5,7 +5,7 @@ import joblib
 import zipfile
 import os
 
-# --- Extract Model if Zipped ---
+# --- Extract Model if Needed ---
 @st.cache_resource
 def extract_model():
     if not os.path.exists("best_model.pkl"):
@@ -13,7 +13,7 @@ def extract_model():
             zip_ref.extractall(".")
 extract_model()
 
-# --- Load Model, Scaler, PCA, Encoder, Gene List ---
+# --- Load Model, Scaler, PCA, Label Encoder, Gene List ---
 @st.cache_resource
 def load_all():
     model = joblib.load("best_model.pkl")
@@ -26,11 +26,11 @@ def load_all():
 
 model, scaler, pca, le_diag, gene_list = load_all()
 
-# --- Header ---
+# --- UI Header ---
 st.markdown("<h1 style='text-align: center; color: #4B0082;'>🧠 Alzheimer's Stage Classifier</h1>", unsafe_allow_html=True)
 st.markdown("<p style='text-align: center;'>Enter gene expression and clinical data to predict Alzheimer’s disease stage.</p>", unsafe_allow_html=True)
 
-# --- Gene Expression Inputs (10 shown) ---
+# --- Gene Inputs (First 10 only) ---
 st.subheader("🧬 Enter Gene Expression Values (first 10 genes shown)")
 gene_input = []
 for i, gene in enumerate(gene_list[:10]):
@@ -49,36 +49,35 @@ faq_total = st.slider("FAQTOTAL", 0, 30, 10)
 gd_total = st.slider("GDTOTAL", 0, 10, 3)
 viscode = st.slider("VISCODE", 0.0, 5.0, 1.0)
 
-# Convert categorical variables
+# --- Convert Categorical ---
 gender_num = 0 if gender == "Male" else 1
 apoe4_num = int(apoe4)
 
 # --- Prediction ---
 if st.button("🧠 Predict Alzheimer’s Stage"):
     try:
-        # Create full gene array (filled with scaler means)
+        # Step 1: Fill full gene array with scaler means
         full_gene_array = np.array(scaler.mean_).reshape(1, -1)
         for i in range(10):
             full_gene_array[0, i] = gene_input[i]
 
-        # Scale and apply PCA
-        gene_scaled = scaler.transform(full_gene_array)
-        gene_pca = pca.transform(gene_scaled)
+        # Step 2: Scale and apply PCA
+        gene_scaled = scaler.transform(full_gene_array)         # [1, 189]
+        gene_pca = pca.transform(gene_scaled)                   # [1, 50]
 
-        # Prepare clinical features
-        clinical_data = np.array([[age, mmse, gender_num, apoe4_num, education, cdr_global, faq_total, gd_total, viscode]])
+        # Step 3: Clinical input
+        clinical_array = np.array([[age, mmse, gender_num, apoe4_num, education, cdr_global, faq_total, gd_total, viscode]])  # [1, 9]
 
-        # Combine all inputs
-        final_input = np.concatenate([gene_pca, clinical_data], axis=1)
+        # Step 4: Merge PCA + Clinical
+        final_input = np.concatenate([gene_pca, clinical_array], axis=1)  # [1, 59]
 
-        # Predict
-        prediction = model.predict(final_input)
-        diagnosis = le_diag.inverse_transform(prediction)[0]
+        # Step 5: Predict
+        pred = model.predict(final_input)
         proba = model.predict_proba(final_input)
+        predicted_label = le_diag.inverse_transform(pred)[0]
 
-        # Show results
-        st.markdown(f"<h3 style='text-align: center; color: green;'>🧠 Predicted Diagnosis: <strong>{diagnosis}</strong></h3>", unsafe_allow_html=True)
-
+        # Step 6: Display Results
+        st.markdown(f"<h3 style='text-align: center; color: green;'>🧠 Predicted Diagnosis: <strong>{predicted_label}</strong></h3>", unsafe_allow_html=True)
         st.markdown("### 🔍 Prediction Probabilities")
         for i, label in enumerate(le_diag.classes_):
             st.write(f"{label}: {proba[0][i]:.3f}")
