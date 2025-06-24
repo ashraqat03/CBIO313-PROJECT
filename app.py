@@ -5,7 +5,7 @@ import joblib
 import zipfile
 import os
 
-# --- Extract Model if Needed ---
+# --- Extract Model if Zipped ---
 @st.cache_resource
 def extract_model():
     if not os.path.exists("best_model.pkl"):
@@ -13,28 +13,27 @@ def extract_model():
             zip_ref.extractall(".")
 extract_model()
 
-# --- Load Model, Encoders, PCA, Scaler, Gene List ---
+# --- Load Model, Scaler, PCA, Encoder, Gene List ---
 @st.cache_resource
 def load_all():
     model = joblib.load("best_model.pkl")
-    le_diag = joblib.load("label_encoder_diag.pkl")
     scaler = joblib.load("scaler.pkl")
     pca = joblib.load("pca.pkl")
+    le_diag = joblib.load("label_encoder_diag.pkl")
     with open("gene_list.txt", "r") as f:
         gene_list = [line.strip() for line in f.readlines()]
-    return model, le_diag, scaler, pca, gene_list
+    return model, scaler, pca, le_diag, gene_list
 
-model, le_diag, scaler, pca, gene_list = load_all()
+model, scaler, pca, le_diag, gene_list = load_all()
 
 # --- Header ---
 st.markdown("<h1 style='text-align: center; color: #4B0082;'>🧠 Alzheimer's Stage Classifier</h1>", unsafe_allow_html=True)
 st.markdown("<p style='text-align: center;'>Enter gene expression and clinical data to predict Alzheimer’s disease stage.</p>", unsafe_allow_html=True)
 
-# --- Gene Expression Inputs ---
+# --- Gene Expression Inputs (10 shown) ---
 st.subheader("🧬 Enter Gene Expression Values (first 10 genes shown)")
-
 gene_input = []
-for i, gene in enumerate(gene_list[:10]):  # Show only 10 genes for simplicity
+for i, gene in enumerate(gene_list[:10]):
     val = st.number_input(f"{gene}", min_value=0.0, max_value=20.0, value=5.0, step=0.1, key=f"gene_{i}")
     gene_input.append(val)
 
@@ -50,26 +49,34 @@ faq_total = st.slider("FAQTOTAL", 0, 30, 10)
 gd_total = st.slider("GDTOTAL", 0, 10, 3)
 viscode = st.slider("VISCODE", 0.0, 5.0, 1.0)
 
-# Convert categorical to numeric
+# Convert categorical variables
 gender_num = 0 if gender == "Male" else 1
 apoe4_num = int(apoe4)
 
-# --- Predict ---
+# --- Prediction ---
 if st.button("🧠 Predict Alzheimer’s Stage"):
     try:
-        # Combine gene + clinical features
-        gene_array = np.array(gene_input).reshape(1, -1)
-        gene_scaled = scaler.transform(gene_array)
+        # Create full gene array (filled with scaler means)
+        full_gene_array = np.array(scaler.mean_).reshape(1, -1)
+        for i in range(10):
+            full_gene_array[0, i] = gene_input[i]
+
+        # Scale and apply PCA
+        gene_scaled = scaler.transform(full_gene_array)
         gene_pca = pca.transform(gene_scaled)
 
-        clinical_features = np.array([[age, mmse, gender_num, apoe4_num, education, cdr_global, faq_total, gd_total, viscode]])
-        final_input = np.concatenate([gene_pca, clinical_features], axis=1)
+        # Prepare clinical features
+        clinical_data = np.array([[age, mmse, gender_num, apoe4_num, education, cdr_global, faq_total, gd_total, viscode]])
 
-        pred = model.predict(final_input)
+        # Combine all inputs
+        final_input = np.concatenate([gene_pca, clinical_data], axis=1)
+
+        # Predict
+        prediction = model.predict(final_input)
+        diagnosis = le_diag.inverse_transform(prediction)[0]
         proba = model.predict_proba(final_input)
-        diagnosis = le_diag.inverse_transform(pred)[0]
 
-        # --- Display results ---
+        # Show results
         st.markdown(f"<h3 style='text-align: center; color: green;'>🧠 Predicted Diagnosis: <strong>{diagnosis}</strong></h3>", unsafe_allow_html=True)
 
         st.markdown("### 🔍 Prediction Probabilities")
