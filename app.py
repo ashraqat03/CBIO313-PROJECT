@@ -5,58 +5,53 @@ import joblib
 import zipfile
 import os
 
-# --- Step 1: Extract ZIP file if needed ---
+# --- Extract ZIP if needed ---
 @st.cache_resource
 def extract_model():
     if not os.path.exists("best_model.pkl"):
         try:
             with zipfile.ZipFile("best_model.zip", 'r') as zip_ref:
                 zip_ref.extractall(".")
-            st.success("✅ Model extracted successfully.")
-        except FileNotFoundError:
-            st.error("🚨 File not found: best_model.zip is missing.")
-            st.stop()
         except Exception as e:
-            st.error(f"🚨 Extraction failed: {e}")
+            st.error(f"🚨 Model extraction failed: {e}")
             st.stop()
 
 extract_model()
 
-# --- Step 2: Load All Required Files ---
+# --- Load Required Files ---
 @st.cache_resource
 def load_files():
     try:
         model = joblib.load("best_model.pkl")
-        scaler = joblib.load("scaler.pkl")         # Trained on full input: 50 gene PCA + 9 clinical
-        pca = joblib.load("pca.pkl")               # PCA from 189 → 50
+        scaler = joblib.load("scaler.pkl")         # Trained on full 59-feature input
+        pca = joblib.load("pca.pkl")               # PCA trained on 189 genes
         le_diag = joblib.load("label_encoder_diag.pkl")
         with open("gene_list.txt", "r") as f:
             gene_list = [line.strip() for line in f.readlines()]
         return model, scaler, pca, le_diag, gene_list
-    except FileNotFoundError as e:
-        st.error(f"🚨 Missing file: {e}")
-        st.stop()
     except Exception as e:
         st.error(f"🚨 Error loading files: {e}")
         st.stop()
 
 model, scaler, pca, le_diag, gene_list = load_files()
 
-# --- Mean filler (for missing gene values) ---
-gene_means = np.ones(len(gene_list)) * 5.0
+# --- Set expected gene count (based on PCA training) ---
+expected_gene_count = 189
+if len(gene_list) != expected_gene_count:
+    st.error(f"🚨 gene_list.txt has {len(gene_list)} genes, but PCA expects {expected_gene_count}. Please fix.")
+    st.stop()
 
-# --- App Header ---
+# --- Gene input UI ---
 st.markdown("<h1 style='text-align: center; color: #4B0082;'>🧠 Alzheimer's Stage Classifier</h1>", unsafe_allow_html=True)
-st.markdown("<p style='text-align: center;'>Enter values to predict Alzheimer’s disease stage.</p>", unsafe_allow_html=True)
+st.markdown("<p style='text-align: center;'>Enter gene expression and clinical data to predict diagnosis stage.</p>", unsafe_allow_html=True)
 
-# --- Gene Inputs ---
 st.subheader("🧬 Enter Gene Expression (First 10 Only)")
 gene_input = []
 for i, gene in enumerate(gene_list[:10]):
     val = st.number_input(f"{gene}", min_value=0.0, max_value=20.0, value=5.0, step=0.1, key=f"gene_{i}")
     gene_input.append(val)
 
-# --- Clinical Inputs ---
+# --- Clinical Input UI ---
 st.subheader("🧑‍⚕️ Enter Clinical Data")
 age = st.number_input("Age", 50, 90, 70)
 mmse = st.number_input("MMSE Score", 0, 30, 25)
@@ -68,40 +63,43 @@ faq_total = st.slider("FAQ Total", 0, 30, 10)
 gd_total = st.slider("GDS Total", 0, 10, 3)
 viscode = st.slider("VISCODE", 0.0, 5.0, 1.0)
 
-# Convert categorical to numeric
+# --- Convert Categorical ---
 gender_num = 0 if gender == "Male" else 1
 apoe4_num = int(apoe4)
 
-# --- Predict Button ---
+# --- Predict ---
 if st.button("🧠 Predict Diagnosis"):
     try:
-        # Step 1: Fill 189 gene expression values (10 real + 179 default)
-        gene_array = gene_means.copy().reshape(1, -1)
-        for i in range(10):
-            gene_array[0, i] = gene_input[i]
+        # Fill gene vector: 10 inputs + 179 mean fillers
+        gene_array = np.ones(expected_gene_count) * 5.0
+        for i in range(len(gene_input)):
+            gene_array[i] = gene_input[i]
 
-        # Step 2: PCA (→ 1×50)
+        gene_array = gene_array.reshape(1, -1)  # shape: (1, 189)
+
+        # PCA → 1×50
         gene_pca = pca.transform(gene_array)
 
-        # Step 3: Append clinical features
+        # Combine with clinical → 1×59
         clinical_array = np.array([[age, mmse, gender_num, apoe4_num,
                                     education, cdr_global, faq_total, gd_total, viscode]])
-        full_input = np.hstack([gene_pca, clinical_array])  # shape: (1, 59)
+        final_input = np.hstack([gene_pca, clinical_array])
 
-        # Step 4: Final scaling
-        scaled_input = scaler.transform(full_input)
+        # Scale → 1×59
+        final_scaled = scaler.transform(final_input)
 
-        # Step 5: Predict
-        pred = model.predict(scaled_input)
-        proba = model.predict_proba(scaled_input)
-        diagnosis = le_diag.inverse_transform(pred)[0]
+        # Predict
+        pred = model.predict(final_scaled)
+        proba = model.predict_proba(final_scaled)
+        label = le_diag.inverse_transform(pred)[0]
 
         # --- Display ---
-        st.success(f"🧠 Predicted Stage: **{diagnosis}**")
-        st.markdown("### 🔍 Probabilities")
-        for i, label in enumerate(le_diag.classes_):
-            st.write(f"{label}: {proba[0][i]:.3f}")
-        st.info("📊 Model Accuracy: 93%  |  ROC-AUC: 0.986")
+        st.success(f"🧠 Predicted Diagnosis: **{label}**")
+        st.markdown("### 🔍 Class Probabilities")
+        for i, cls in enumerate(le_diag.classes_):
+            st.write(f"{cls}: {proba[0][i]:.3f}")
+
+        st.info("📊 Model Accuracy: 93% | Macro ROC-AUC: 0.986")
 
     except Exception as e:
         st.error(f"🚨 Prediction failed: {e}")
